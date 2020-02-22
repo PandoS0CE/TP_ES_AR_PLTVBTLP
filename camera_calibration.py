@@ -1,12 +1,12 @@
 import numpy as np
 import cv2 as cv
 import glob
-import yaml
+#import yaml
 import argparse
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f","--filename", help="calibration directory path")
+    parser.add_argument("-d","--directory", help="calibration directory path")
     args = parser.parse_args()
 
     if args.filename != None:

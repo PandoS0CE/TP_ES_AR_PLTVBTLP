@@ -20,3 +20,9 @@ mais le code de la page existe plus
 Un mec qui utilise opencv for unity
 https://github.com/MasteringOpenCV/code
 https://www.youtube.com/watch?v=B4pc_e8mdcs
+
+
+## Conda
+
+[OpenCV](https://anaconda.org/conda-forge/opencv)
+`conda install -c conda-forge opencv `
