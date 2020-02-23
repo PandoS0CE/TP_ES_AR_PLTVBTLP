@@ -33,11 +33,11 @@ def main():
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     # load the reference surface that will be searched in the video stream
     dir_name = os.getcwd()
-    model = cv2.imread(os.path.join(dir_name, 'reference/detail.png'), 0)
+    model = cv2.imread(os.path.join(dir_name, './markers/natural.png'), 0)
     # Compute model keypoints and its descriptors
     kp_model, des_model = orb.detectAndCompute(model, None)
     # Load 3D model from OBJ file
-    obj = OBJ(os.path.join(dir_name, 'models/Pikachu.obj'), swapyz=True)  
+    obj = OBJ(os.path.join(dir_name, './models/Pikachu.obj'), swapyz=True)  
     # init video capture
     cap = cv2.VideoCapture(0)
 

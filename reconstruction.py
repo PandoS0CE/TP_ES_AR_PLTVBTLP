@@ -5,16 +5,16 @@ import argparse
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f","--filename", help="calibration directory path")
+    parser.add_argument("-d","--directory", help="directory path")
     args = parser.parse_args()
 
-    if args.filename != None:
-        print("Directory Loaded : "+str(args.filename))
+    if args.directory != None:
+        print("Directory Loaded : "+str(args.directory))
     else:
-        print("No directory loaded used -f argurment")
+        print("No directory loaded used -d argurment")
         quit()
 
-    return args.filename
+    return args.directory
 
 def draw(img, corners, imgpts):
     imgpts = np.int32(imgpts).reshape(-1,2)
@@ -44,6 +44,7 @@ def main():
 
     for fname in glob.glob(str(calibration_dir)+'/*.jpg'):
         img = cv.imread(fname)
+        img = cv.resize(img,(512,512))
         gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)
         ret, corners = cv.findChessboardCorners(gray, (rows,cols),None)
         if ret == True:

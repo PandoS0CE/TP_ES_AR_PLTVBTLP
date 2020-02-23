@@ -1,75 +1,67 @@
 import numpy as np
 import cv2 as cv
+import matplotlib.pyplot as plt
 import argparse
+import ARTools
+from ARTools import ARPipeline
 
-def get_args(calibration,marker):
+def get_args(calibration,marker,minMatches,maxMatches):
     parser = argparse.ArgumentParser()
     parser.add_argument("-c","--calibration", help="calibration file")
     parser.add_argument("-m","--marker", help="marker image")
+    parser.add_argument("-min","--minmatches", help="min matches")
+    parser.add_argument("-max","--maxmatches", help="max matches")
     args = parser.parse_args()
 
     if args.calibration != None :
         calibration=str(args.calibration)
     if args.marker != None :
         marker=str(args.marker)
-
-def capture(cam,quitKey):
-    # Capture frame-by-frame
-    ret, frame = cam.read()
-    if not ret:
-        print('Unable to capture video')
-        cam.release()
-        cv.destroyAllWindows()
-        quit()  
-
-    if  cv.waitKey(1) & 0xFF == ord(str(quitKey)):
-        cam.release()
-        cv.destroyAllWindows()
-        quit()
+    if args.minmatches != None :
+        minMatches=int(args.minmatches)
+    if args.maxmatches != None :
+        maxMatches=int(args.maxmatches)
     
-    return frame
+    return calibration,marker,minMatches,maxMatches
 
 def main():
     #region Initialization
-    cam = cv.VideoCapture(0,cv.CAP_DSHOW)
-    cam.set(cv.CAP_PROP_FRAME_WIDTH, 640)
-    cam.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
     calibration_file='./calibration/huawei_p30/calibration.npz'
-    marker_file='./markers/fiducial.png'
-    quitKey='q'
-    get_args(calibration_file,marker_file)
-    # Load calibration saved
-    with np.load(str(calibration_file)) as X:
-        mtx, dist, _, _ = [X[i] for i in ('mtx','dist','rvecs','tvecs')]
-
-    print('[INFO] Calibration file used is \"'+str(calibration_file)+'\"')
-    print('[INFO] Marker used is \"'+str(marker_file)+'\"')
-    print('[INFO] Press \"'+str(quitKey)+'\" to quit')
+    marker_file='./markers/natural.png'
+    minMatches=10
+    maxMatches=20
+    calibration_file,marker_file,minMatches,maxMatches=get_args(calibration_file,marker_file,minMatches,maxMatches)
+    moveWindows=True
+    pipeline=ARPipeline()
+    pipeline.LoadCamCalibration(calibration_file)
+    pipeline.LoadMarker(marker_file)
     #endregion
     
-    #region Descriptor features
-    orb = cv.ORB_create()
-    # Find the keypoints and compute descriptor with ORB
-    marker=cv.imread(marker_file,cv.IMREAD_COLOR)
-    #marker = cv.cvtColor(marker,cv.COLOR_BGR2GRAY)
-    kp_marker, des_marker = orb.detectAndCompute(marker, None) 
-
-    marker_keypoints=cv.drawKeypoints(marker,kp_marker,_,color=(0,255,0), flags=0)
-    size=(int(cam.get(cv.CAP_PROP_FRAME_WIDTH)),int(cam.get(cv.CAP_PROP_FRAME_HEIGHT)))
-    marker_keypoints = cv.resize(marker_keypoints,size)
-    cv.imshow('Marker', marker_keypoints)
-    #endregion
-
-    while(True):        
-        # Process the frame
-        frame=capture(cam,quitKey)
-        cv.imshow('Camera', frame)
+    while(True): 
+        frame=pipeline.GetFrame()
+        matches,frame_kp=pipeline.ComputeMatches(frame=frame,minMatches=minMatches)
+        pipeline.HomographyEstimation(matches,frame_kp)
+        #pipeline.ComputePose()
+        #region rendering
+        if matches is not None :
+            cv.imshow('Camera',frame)
+            cv.imshow('Keypoints',ARTools.DrawKeypoints(frame,frame_kp))
+            img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.GetMarker(),pipeline.GetMarkerKeypoints(),matches,maxMatches=maxMatches)
+            img_matches = cv.resize(img_matches,(frame.shape[1],frame.shape[0]))
+            cv.imshow('Matches',img_matches)
+        else :
+            #not enough feature to compute pose
+            cv.imshow('Camera', frame)
+            cv.imshow('Keypoints', frame)
+            img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.GetMarker(),pipeline.GetMarkerKeypoints(),None)
+            img_matches = cv.resize(img_matches,(frame.shape[1],frame.shape[0]))
+            cv.imshow('Matches',img_matches)
         
-        # Pose Estimation
-        #@TODO use mtx & co + papier prof   cv find homography     
-
-
-
-
+        if moveWindows==True :
+            cv.moveWindow('Camera',0,0)
+            cv.moveWindow('Keypoints',frame.shape[1],0)
+            cv.moveWindow('Matches',2*frame.shape[1],0)
+            moveWindows=False
+        #endregion
 if __name__ == '__main__':
     main()
