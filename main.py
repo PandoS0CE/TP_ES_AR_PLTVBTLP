@@ -12,6 +12,7 @@ def get_args(calibration,marker,minMatches,maxMatches,video):
     parser.add_argument('-min','--minmatches', help='min matches')
     parser.add_argument('-max','--maxmatches', help='max matches')
     parser.add_argument('-v','--video',help='video path')
+    parser.add_argument('-f','--fast',help='play video in at fps time',action='store_true')
     args = parser.parse_args()
 
     if args.calibration != None :
@@ -25,7 +26,7 @@ def get_args(calibration,marker,minMatches,maxMatches,video):
     if args.video != None :
         video=str(args.video)
     
-    return calibration,marker,minMatches,maxMatches,video
+    return calibration,marker,minMatches,maxMatches,video,args.fast
 
 def main():
     #region Initialization
@@ -34,9 +35,9 @@ def main():
     marker_file='./markers/fiducial.png'
     minMatches=10
     maxMatches=20
-    calibration_file,marker_file,minMatches,maxMatches,video=get_args(calibration_file,marker_file,minMatches,maxMatches,video)
+    calibration_file,marker_file,minMatches,maxMatches,video,fastMode=get_args(calibration_file,marker_file,minMatches,maxMatches,video)
     moveWindows=True
-    pipeline=ARPipeline(video=video)
+    pipeline=ARPipeline(video=video,fastMode=fastMode)
     pipeline.LoadCamCalibration(calibration_file)
     pipeline.LoadMarker(marker_file)
     #endregion

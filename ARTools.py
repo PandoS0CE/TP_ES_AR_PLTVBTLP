@@ -2,10 +2,11 @@ import numpy as np
 import cv2 as cv
 
 class ARPipeline:
-    def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=False):
+    def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=True,fastMode=False):
         self.escapeKey=escapeKey
         self.video=video
         self.loop=loop
+        self.fastMode=fastMode
         print('[INFO] Press \"'+str(self.escapeKey)+'\" to quit')
 
         if video==0 :
@@ -53,12 +54,13 @@ class ARPipeline:
 
             if self.video !=0 :
                 # Video from file
-                for i in range(int(self.cam.get(cv.CAP_PROP_FPS))) :
-                    if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
-                        # Stop with key
-                        self.cam.release()
-                        cv.destroyAllWindows()
-                        quit()
+                if not(self.fastMode==True) :
+                    for i in range(int(self.cam.get(cv.CAP_PROP_FPS))) :
+                        if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
+                            # Stop with key
+                            self.cam.release()
+                            cv.destroyAllWindows()
+                            quit()
 
                 if not ret :
                     if self.loop==True :
