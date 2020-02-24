@@ -2,9 +2,10 @@ import numpy as np
 import cv2 as cv
 
 class ARPipeline:
-    def __init__(self,escapeKey='q',width=640,height=480,video=0):
+    def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=False):
         self.escapeKey=escapeKey
         self.video=video
+        self.loop=loop
         print('[INFO] Press \"'+str(self.escapeKey)+'\" to quit')
 
         if video==0 :
@@ -14,7 +15,7 @@ class ARPipeline:
         else :
             self.cam = cv.VideoCapture(video)
             self.video=video
-            print('[INFO] Video capture is \"'+str(video)+'\", FPS : '+str(self.cam.get(cv.CAP_PROP_FPS)))
+            print('[INFO] Video capture is \"'+str(video)+'\", '+str(self.cam.get(cv.CAP_PROP_FPS))+' FPS')
         
         self.cam.set(cv.CAP_PROP_FRAME_WIDTH, width)
         self.cam.set(cv.CAP_PROP_FRAME_HEIGHT, height)
@@ -49,17 +50,35 @@ class ARPipeline:
         # Capture frame-by-frame
         if self.cam.isOpened() :
             ret, frame = self.cam.read()
-            if not ret:
-                if self.video != 0 :
-                    self.cam.set(cv.CAP_PROP_POS_FRAMES, 0)
-                    return self.GetFrame()
-                else :
+
+            if self.video !=0 :
+                # Video from file
+                for i in range(int(self.cam.get(cv.CAP_PROP_FPS))) :
+                    if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
+                        # Stop with key
+                        self.cam.release()
+                        cv.destroyAllWindows()
+                        quit()
+
+                if not ret :
+                    if self.loop==True :
+                        self.cam.set(cv.CAP_PROP_POS_FRAMES, 0)
+                        return self.GetFrame()
+                    else :
+                        # End of video file
+                        self.cam.release()
+                        cv.destroyAllWindows()
+                        quit()
+            else :
+                # Video from camera check return
+                if not ret :
                     print('[ERROR] Unable to capture video')
                     self.cam.release()
                     cv.destroyAllWindows()
-                    quit()  
+                    quit()    
 
             if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
+                # Stop with key
                 self.cam.release()
                 cv.destroyAllWindows()
                 quit()
@@ -68,7 +87,7 @@ class ARPipeline:
             self.cam.release()
             cv.destroyAllWindows()
             quit()
-        
+
         return frame
     
     def ComputeMatches(self,frame,minMatches):
