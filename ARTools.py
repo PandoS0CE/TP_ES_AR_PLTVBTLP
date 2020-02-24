@@ -2,10 +2,20 @@ import numpy as np
 import cv2 as cv
 
 class ARPipeline:
-    def __init__(self,escapeKey='q',width=640,height=480):
+    def __init__(self,escapeKey='q',width=640,height=480,video=0):
         self.escapeKey=escapeKey
+        self.video=video
         print('[INFO] Press \"'+str(self.escapeKey)+'\" to quit')
-        self.cam = cv.VideoCapture(0,cv.CAP_DSHOW)
+
+        if video==0 :
+            self.cam = cv.VideoCapture(video,cv.CAP_DSHOW)
+            print('[INFO] Video capture is \"camera\"')
+           
+        else :
+            self.cam = cv.VideoCapture(video)
+            self.video=video
+            print('[INFO] Video capture is \"'+str(video)+'\", FPS : '+str(self.cam.get(cv.CAP_PROP_FPS)))
+        
         self.cam.set(cv.CAP_PROP_FRAME_WIDTH, width)
         self.cam.set(cv.CAP_PROP_FRAME_HEIGHT, height)
         self.descriptor_extractor = cv.ORB_create()
@@ -37,14 +47,24 @@ class ARPipeline:
 
     def GetFrame(self):
         # Capture frame-by-frame
-        ret, frame = self.cam.read()
-        if not ret:
-            print('[ERROR] Unable to capture video')
-            self.cam.release()
-            cv.destroyAllWindows()
-            quit()  
+        if self.cam.isOpened() :
+            ret, frame = self.cam.read()
+            if not ret:
+                if self.video != 0 :
+                    self.cam.set(cv.CAP_PROP_POS_FRAMES, 0)
+                    return self.GetFrame()
+                else :
+                    print('[ERROR] Unable to capture video')
+                    self.cam.release()
+                    cv.destroyAllWindows()
+                    quit()  
 
-        if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
+            if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
+                self.cam.release()
+                cv.destroyAllWindows()
+                quit()
+        else :
+            print('[ERROR] Unable to capture video source')
             self.cam.release()
             cv.destroyAllWindows()
             quit()

@@ -5,12 +5,13 @@ import argparse
 import ARTools
 from ARTools import ARPipeline
 
-def get_args(calibration,marker,minMatches,maxMatches):
+def get_args(calibration,marker,minMatches,maxMatches,video):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c","--calibration", help="calibration file")
-    parser.add_argument("-m","--marker", help="marker image")
-    parser.add_argument("-min","--minmatches", help="min matches")
-    parser.add_argument("-max","--maxmatches", help="max matches")
+    parser.add_argument('-c','--calibration', help='calibration file')
+    parser.add_argument('-m','--marker', help='marker image')
+    parser.add_argument('-min','--minmatches', help='min matches')
+    parser.add_argument('-max','--maxmatches', help='max matches')
+    parser.add_argument('-v','--video',help='video path')
     args = parser.parse_args()
 
     if args.calibration != None :
@@ -21,18 +22,21 @@ def get_args(calibration,marker,minMatches,maxMatches):
         minMatches=int(args.minmatches)
     if args.maxmatches != None :
         maxMatches=int(args.maxmatches)
+    if args.video != None :
+        video=str(args.video)
     
-    return calibration,marker,minMatches,maxMatches
+    return calibration,marker,minMatches,maxMatches,video
 
 def main():
     #region Initialization
+    video=0 #0 to use camera
     calibration_file='./calibration/huawei_p30/calibration.npz'
-    marker_file='./markers/natural.png'
+    marker_file='./markers/fiducial.png'
     minMatches=10
     maxMatches=20
-    calibration_file,marker_file,minMatches,maxMatches=get_args(calibration_file,marker_file,minMatches,maxMatches)
+    calibration_file,marker_file,minMatches,maxMatches,video=get_args(calibration_file,marker_file,minMatches,maxMatches,video)
     moveWindows=True
-    pipeline=ARPipeline()
+    pipeline=ARPipeline(video=video)
     pipeline.LoadCamCalibration(calibration_file)
     pipeline.LoadMarker(marker_file)
     #endregion
