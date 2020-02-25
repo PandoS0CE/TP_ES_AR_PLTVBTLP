@@ -13,8 +13,9 @@ if (cap.isOpened() == False):
 # We convert the resolutions from float to integer.
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
-print('frame size : '+str(frame_width)+', '+str(frame_height))
-print('path write : '+str(path))
+print('[INFO] Frame size : '+str(frame_width)+', '+str(frame_height))
+print('[INFO] Path write : '+str(path))
+print('[INFO] Press \"q\" to end the capture')
 # Define the codec and create VideoWriter object.The output is stored in 'outpy.avi' file.
 out = cv.VideoWriter(path,cv.VideoWriter_fourcc(*'mp4v'), 10, (frame_width,frame_height))
 while(True):

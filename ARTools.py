@@ -2,24 +2,26 @@ import numpy as np
 import cv2 as cv
 
 class ARPipeline:
-    def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=True,fastMode=False):
+    def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=True,realMode=False):
         self.escapeKey=escapeKey
+        self.width=width
+        self.height=height
         self.video=video
         self.loop=loop
-        self.fastMode=fastMode
+        self.realMode=realMode
         print('[INFO] Press \"'+str(self.escapeKey)+'\" to quit')
 
         if video==0 :
             self.cam = cv.VideoCapture(video,cv.CAP_DSHOW)
             print('[INFO] Video capture is \"camera\"')
-           
         else :
             self.cam = cv.VideoCapture(video)
             self.video=video
-            print('[INFO] Video capture is \"'+str(video)+'\", '+str(self.cam.get(cv.CAP_PROP_FPS))+' FPS')
+
+            print('[INFO] Video capture is \"'+str(video)+'\", '+str(int(self.cam.get(cv.CAP_PROP_FPS)))+' FPS')
         
-        self.cam.set(cv.CAP_PROP_FRAME_WIDTH, width)
-        self.cam.set(cv.CAP_PROP_FRAME_HEIGHT, height)
+        self.cam.set(cv.CAP_PROP_FRAME_WIDTH, self.width)
+        self.cam.set(cv.CAP_PROP_FRAME_HEIGHT, self.height)
         self.descriptor_extractor = cv.ORB_create()
         self.matcher= cv.BFMatcher() #https://docs.opencv.org/master/dc/dc3/tutorial_py_matcher.html
 
@@ -54,7 +56,7 @@ class ARPipeline:
 
             if self.video !=0 :
                 # Video from file
-                if not(self.fastMode==True) :
+                if not(self.realMode==True) :
                     for i in range(int(self.cam.get(cv.CAP_PROP_FPS))) :
                         if  cv.waitKey(1) & 0xFF == ord(str(self.escapeKey)):
                             # Stop with key
@@ -71,6 +73,9 @@ class ARPipeline:
                         self.cam.release()
                         cv.destroyAllWindows()
                         quit()
+                else:
+                    # resize video frame
+                    frame = cv.resize(frame,(self.width,self.height))
             else :
                 # Video from camera check return
                 if not ret :
@@ -93,7 +98,8 @@ class ARPipeline:
         return frame
     
     def ComputeMatches(self,frame,minMatches):
-        frame_kp, frame_des = self.descriptor_extractor.detectAndCompute(frame, None)
+        frame_gray=cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        frame_kp, frame_des = self.descriptor_extractor.detectAndCompute(frame_gray, None)
         
         if frame_des is None or len(frame_des)<minMatches :
             #print('[Warning] Not enough match between frame and marker')
@@ -118,9 +124,6 @@ class ARPipeline:
     def ComputePose(self):
         print("co")
         # voir pose_from_homography_dl => https://visp-doc.inria.fr/doxygen/camera_localization/tutorial-pose-dlt-planar-opencv.html
-
-
-
 
 def DrawKeypoints(img,keypoints,width=None,height=None):
     if width == None :
