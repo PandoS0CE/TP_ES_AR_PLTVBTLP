@@ -43,13 +43,15 @@ def main():
     
     while(True): 
         frame=pipeline.GetFrame()
-        matches,frame_kp=pipeline.ComputeMatches(frame,minMatches=minMatches)
+        matches,frame_kp=pipeline.ComputeMatches(frame)
+        homography,_=pipeline.ComputeHomography(matches,frame_kp,minMatches=minMatches)
         matches_refined=pipeline.RefineMatches(matches,frame_kp)
-        homography_refined,_=pipeline.ComputeHomography(matches_refined,frame_kp)
-        found=pipeline.FindMarker(frame,homography_refined,minMatches=minMatches)
-
+        homography_refined,_=pipeline.ComputeHomography(matches_refined,frame_kp,minMatches=minMatches)
+        #found=pipeline.FindMarker(frame,homography_refined,minMatches=minMatches)
+        rvecs, tvecs=pipeline.ComputePose(frame,homography_refined)
         #region Rendering
-        cv.imshow('AR Camera',ARTools.Draw3DRectangle(frame,pipeline.marker.img,homography_refined))
+        ar=ARTools.Draw3DRectangle(frame,pipeline.marker.img,homography,color=(0,0,255))
+        cv.imshow('AR Camera',ARTools.Draw3DRectangle(ar,pipeline.marker.img,homography_refined,color=(255,0,0),old=pipeline.old.transformation))
         cv.imshow('Keypoints',ARTools.DrawKeypoints(frame,frame_kp))
         img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.marker.img,pipeline.marker.kp,matches,maxMatches=maxMatches)
         img_matches = cv.resize(img_matches,(frame.shape[1],frame.shape[0]))

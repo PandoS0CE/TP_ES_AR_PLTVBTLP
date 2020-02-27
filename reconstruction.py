@@ -50,6 +50,7 @@ def main():
         if ret == True:
             corners2 = cv.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
             # Find the rotation and translation vectors.
+            print(str(objp.shape)+', '+str(corners2.shape))
             ret,rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
             # project 3D points to image plane
             imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)

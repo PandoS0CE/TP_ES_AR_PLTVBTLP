@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 
-_debug=True
+_debug=False
 print('[INFO] Debug ARTools is : '+str(_debug))
 
 def DrawKeypoints(img,keypoints,width=None,height=None):
@@ -30,7 +30,7 @@ def DrawMatches(img,img_kp,marker,marker_kp,matches,maxMatches=None):
         tmp=cv.drawMatchesKnn(marker,marker_kp,img,img_kp,matches[:maxMatches],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     return tmp
 
-def Draw3DRectangle(img,marker,homography):
+def Draw3DRectangle(img,marker,homography,color=(255,0,0),old=None):
     frame=img.copy()
     if homography is not None :
         # Draw a rectangle that marks the found model in the frame
@@ -39,33 +39,31 @@ def Draw3DRectangle(img,marker,homography):
         pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
         # project corners into frame
         dst = cv.perspectiveTransform(pts, homography)
+        if old is not None :    
+            old.Add(dst)
+            dst=old.Mean()
+
         # connect them with lines  
-        frame = cv.polylines(frame, [np.int32(dst)], True, 255, 3, cv.LINE_AA)
+        frame = cv.polylines(frame, [np.int32(dst)], True, color, 3, cv.LINE_AA)
 
     return frame  
 
-def Draw3DCube(img, corners, imgpts,cam):
+def Draw3DCube(img, rvecs,tvecs,cam):
     frame=img.copy()
-    # axis = np.float32([[0,0,0], [0,3,0], [3,3,0], [3,0,0],[0,0,-3],[0,3,-3],[3,3,-3],[3,0,-3] ])
+    if rvecs is not None and tvecs is not None :
+        axis = np.float32([[0,0,0], [0,3,0], [3,3,0], [3,0,0],[0,0,-3],[0,3,-3],[3,3,-3],[3,0,-3] ])
+        # # project 3D points to image plane
+        # imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, cam.mtx, cam.dist)
+        # imgpts = np.int32(imgpts).reshape(-1,2)
+        # # draw ground floor in green
+        # frame = cv.drawContours(img, [imgpts[:4]],-1,(0,255,0),-3)
+        # # draw pillars in blue color
+        # for i,j in zip(range(4),range(4,8)):
+        #     frame = cv.line(frame, tuple(imgpts[i]), tuple(imgpts[j]),(255),3)
+        # # draw top layer in red color
+        # frame = cv.drawContours(frame, [imgpts[4:]],-1,(0,0,255),3)
 
-    # # Find the rotation and translation vectors.
-    # ret,rvecs, tvecs = cv.solvePnP(objp, corners2, cam.mtx, cam.dist)
-    # # project 3D points to image plane
-    # imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, cam.mtx, cam.dist)
-
-    # # Draw
-    # imgpts = np.int32(imgpts).reshape(-1,2)
-    # # draw ground floor in green
-    # frame = cv.drawContours(frame, [imgpts[:4]],-1,(0,255,0),-3)
-    # # draw pillars in blue color
-    # for i,j in zip(range(4),range(4,8)):
-    #     frame = cv.line(frame, tuple(imgpts[i]), tuple(imgpts[j]),(255),3)
-    # # draw top layer in red color
-    # frame = cv.drawContours(frame, [imgpts[4:]],-1,(0,0,255),3)
-    
     return frame
-
-
 
 def Log(message):
      if _debug==True :
@@ -75,12 +73,32 @@ class Struct(object):
     def __getattr__(self, name):
         setattr(self, name, None)
 
+class FrameStacker:
+    def __init__(self,n=15):
+        self.n=n
+        self.frames=[]
+
+    def Add(self,object):
+        if len(self.frames)==self.n :
+            self.frames.pop()
+        self.frames.insert(0,object)
+    
+    def Clear(self):
+        self.frames=[]
+
+    def Mean(self):
+        m=self.frames[0].copy()
+        # for f in self.frames :
+        #     m=(m+f)/2 #@TODO pas bon
+
+        return m
 
 class ARPipeline:
     def __init__(self,escapeKey='q',width=640,height=480,video=0,loop=True,realMode=False):
         self.cam=Struct()
         self.marker=Struct()
-
+        self.old=Struct()
+        self.old.transformation=FrameStacker()
         self.escapeKey=escapeKey
         self.cam.width=width
         self.cam.height=height
@@ -168,31 +186,28 @@ class ARPipeline:
 
         return frame
     
-    def ComputeMatches(self,frame,minMatches=10):
+    def ComputeMatches(self,frame):
         good_matches = []
         k=2
         frame_kp, frame_des = self.descriptor.detectAndCompute(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), None)
 
         if frame_des is not None and len(frame_kp)>=k:
             matches=self.matcher.knnMatch(self.marker.des,frame_des,k=k)
-            if len(matches) > minMatches :
-                for m,n in matches:
-                    if m.distance < 0.75*n.distance:
-                        good_matches.append([m])
-            else :
-                Log('[Warning] Not enough matches')
+            for m,n in matches:
+                if m.distance < 0.75*n.distance:
+                    good_matches.append([m])
         else:
             Log('[Warning] Not enough descriptors found in the frame')
+
         return good_matches,frame_kp
 
-    def ComputeHomography(self,matches,frame_kp):
+    def ComputeHomography(self,matches,frame_kp,minMatches=10):
         homography=None
         mask=None
         
-        if len(matches) >0 :      
+        if len(matches) >minMatches :      
             src_points = np.float32([self.marker.kp[m[0].queryIdx].pt for m in matches]).reshape(-1,1,2)
             dst_points = np.float32([frame_kp[m[0].trainIdx].pt for m in matches]).reshape(-1,1,2)
-
             homography, mask=cv.findHomography(src_points,dst_points,cv.RANSAC,ransacReprojThreshold=3.0)
 
         return homography,mask
@@ -217,8 +232,22 @@ class ARPipeline:
             # cv.imshow('test',warped)
         return found
 
+    def ComputePose(self,frame,homography):
+        maxSize = max(frame.shape[1],frame.shape[0]) #normalize dimension
+        rvecs=None
+        tvecs=None
+        if homography is not None :
+            axis = np.float32([[0,0,0], [0,3,0], [3,3,0], [3,0,0],
+                   [0,0,-3],[0,3,-3],[3,3,-3],[3,0,-3] ])
+            
+            points2D = np.float32([[0, 0], [frame.shape[1],0], [frame.shape[1],frame.shape[0]], [0, frame.shape[0]]]).reshape(-1, 1, 2)
+            points3D = np.float32([[-frame.shape[1]/maxSize,-frame.shape[0]/maxSize,0],[frame.shape[1]/maxSize,-frame.shape[0]/maxSize,0],[frame.shape[1]/maxSize,frame.shape[0]/maxSize,0],[-frame.shape[1]/maxSize,frame.shape[0]/maxSize,0]])
+            
+            corners2D=cv.perspectiveTransform(points2D, homography)
+            
+            # Find the rotation and translation vectors.
+            _,rvecs, tvecs = cv.solvePnP(points3D, corners2D, self.cam.mtx, self.cam.dist)
+        else :
+            Log('[Warning] Cannot compute pose without homography')  
 
-
-
-
-
+        return rvecs, tvecs
