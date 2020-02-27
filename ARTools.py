@@ -97,36 +97,47 @@ class ARPipeline:
 
         return frame
     
-    def ComputeMatches(self,frame):
+    def ComputeMatches(self,frame,minMatches=10):
+        good = []
         frame_gray=cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         frame_kp, frame_des = self.descriptor_extractor.detectAndCompute(frame_gray, None)
         
         matches=self.matcher.knnMatch(frame_des,self.marker_descriptor,k=2)
-        # Apply ratio test
-        good = []
-        for m,n in matches:
-            if m.distance < 0.75*n.distance:
-                good.append([n])
+        if len(matches) > minMatches :
+            # Enough matches to apply ratio test
+            for m,n in matches:
+                if m.distance < 0.75*n.distance:
+                    good.append([n])
 
         return good,frame_kp
 
-    def RefineMatches(self,matches,frame_kp,minMatches=10):
-        #@TODO inverser src dest dans le precedent voir si ça crash ou pas 
+    def ComputeHomography(self,matches,frame_kp):
+        homography=None
+        mask=None
+        
+        if len(matches) >0 :      
+            src_points = np.float32([frame_kp[m[0].queryIdx].pt for m in matches]).reshape(-1,1,2)
+            dst_points = np.float32([self.GetMarkerKeypoints()[m[0].trainIdx].pt for m in matches]).reshape(-1,1,2)
+            homography, mask=cv.findHomography(src_points,dst_points,cv.RANSAC,ransacReprojThreshold=3.0)
+        return homography,mask
+    
+    def RefineMatches(self,matches,frame_kp):
         correct_matches=[]
-        if len(matches) < minMatches :
-            #print('[Warning] Not enough matches between frame and marker : '+str(len(matches)))
-            return correct_matches
-
-        # Compute Homography
-        src_points = np.float32([frame_kp[m[0].queryIdx].pt for m in matches]).reshape(-1,1,2)
-        dst_points = np.float32([self.GetMarkerKeypoints()[m[0].trainIdx].pt for m in matches]).reshape(-1,1,2)
-        retval, mask=cv.findHomography(src_points,dst_points,cv.RANSAC,ransacReprojThreshold=3.0)
-
+        _,mask=self.ComputeHomography(matches,frame_kp)
+        
         # Get inliers mask
         correct_matches = [matches[i] for i in range(len(matches)) if mask[i]]
 
         return correct_matches
     
+    def FindMarker(self,frame,homography,minMatches=10):
+        found=False
+        #if homography is not None :
+            # Warp marker image using homography
+            # warped=cv.warpPerspective(src=cv.cvtColor(self.GetMarker(), cv.COLOR_BGR2GRAY), M=homography,dsize=(frame.shape[0],frame.shape[1]),flags=cv.WARP_INVERSE_MAP | cv.INTER_CUBIC)  
+            # #matches,wrapped_kp_=self.ComputeMatches(warped,minMatches)
+            # cv.imshow('test',warped)
+        return found
 
 def DrawKeypoints(img,keypoints,width=None,height=None):
     if width == None :
@@ -143,11 +154,30 @@ def DrawKeypoints(img,keypoints,width=None,height=None):
 
 def DrawMatches(img,img_kp,marker,marker_kp,matches,maxMatches=None):
     keypoints=DrawKeypoints(marker,marker_kp)
-
-    if maxMatches == None or maxMatches>len(matches)-1:
-        maxMatches=len(matches)-1
-        if maxMatches < 0 :
-            maxMatches=0
-    tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,matches[:maxMatches],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    if matches is None :
+        tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,None,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    else:
+        if maxMatches == None or maxMatches>len(matches)-1:
+            maxMatches=len(matches)-1
+            if maxMatches < 0 :
+                maxMatches=0
+        tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,matches[:maxMatches],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     
     return tmp
+
+def DrawRectangle(img,marker,homography):
+    frame=img.copy()
+    if homography is not None :
+        # Draw a rectangle that marks the found model in the frame
+        h=marker.shape[0]
+        w=marker.shape[1]
+        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+        # project corners into frame
+        dst = cv.perspectiveTransform(pts, homography)
+        # connect them with lines  
+        frame = cv.polylines(frame, [np.int32(dst)], True, 255, 3, cv.LINE_AA)
+
+    return frame  
+
+
+ 
