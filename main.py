@@ -43,26 +43,27 @@ def main():
     
     while(True): 
         frame=pipeline.GetFrame()
-        matches,frame_kp=pipeline.ComputeMatches(frame=frame,minMatches=minMatches)
+        matches,frame_kp=pipeline.ComputeMatches(frame,minMatches=minMatches)
         matches_refined=pipeline.RefineMatches(matches,frame_kp)
         homography_refined,_=pipeline.ComputeHomography(matches_refined,frame_kp)
         found=pipeline.FindMarker(frame,homography_refined,minMatches=minMatches)
-        
+
         #region Rendering
-        cv.imshow('AR Camera',ARTools.DrawRectangle(frame,pipeline.GetMarker(),homography_refined))
+        cv.imshow('AR Camera',ARTools.Draw3DRectangle(frame,pipeline.marker.img,homography_refined))
         cv.imshow('Keypoints',ARTools.DrawKeypoints(frame,frame_kp))
-        img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.GetMarker(),pipeline.GetMarkerKeypoints(),matches,maxMatches=maxMatches)
+        img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.marker.img,pipeline.marker.kp,matches,maxMatches=maxMatches)
         img_matches = cv.resize(img_matches,(frame.shape[1],frame.shape[0]))
         cv.imshow('Matches',img_matches)
-        # img_matches_refined=ARTools.DrawMatches(frame,frame_kp,pipeline.GetMarker(),pipeline.GetMarkerKeypoints(),matches_refined,maxMatches=maxMatches)
-        # img_matches_refined = cv.resize(img_matches_refined,(frame.shape[1],frame.shape[0]))
-        # cv.imshow('Matches refined',img_matches_refined)
+        img_matches_refined=ARTools.DrawMatches(frame,frame_kp,pipeline.marker.img,pipeline.marker.kp,matches_refined,maxMatches=maxMatches)
+        img_matches_refined = cv.resize(img_matches_refined,(frame.shape[1],frame.shape[0]))
+        cv.imshow('Matches refined',img_matches_refined)
+
         if moveWindows==True :
             # init position windows once
             cv.moveWindow('AR Camera',0,0)
             cv.moveWindow('Keypoints',frame.shape[1],0)
             cv.moveWindow('Matches',2*frame.shape[1],0)
-            # cv.moveWindow('Matches refined',2*frame.shape[1],30+frame.shape[0])
+            cv.moveWindow('Matches refined',2*frame.shape[1],frame.shape[0])
             moveWindows=False
         #endregion
 

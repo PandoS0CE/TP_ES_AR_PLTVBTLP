@@ -54,7 +54,7 @@ def main():
         # sort them in the order of their distance
         # the lower the distance, the better the match
         matches = sorted(matches, key=lambda x: x.distance)
-
+       
         # compute Homography if enough matches are found
         if len(matches) > MIN_MATCHES:
             # differenciate between source points and destination points
