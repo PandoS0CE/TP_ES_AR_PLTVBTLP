@@ -40,7 +40,7 @@ class ARPipeline:
     def LoadMarker(self,markerPath):
         self.markerPath=markerPath
         self.marker=cv.imread(self.markerPath,cv.IMREAD_COLOR)
-        self.marker_keypoints, self.marker_descriptor = self.descriptor_extractor.detectAndCompute(self.GetMarker(), None)
+        self.marker_keypoints, self.marker_descriptor = self.descriptor_extractor.detectAndCompute(cv.cvtColor(self.GetMarker(), cv.COLOR_BGR2GRAY), None)
         print('[INFO] Marker used is \"'+str(self.markerPath)+'\"')
     
     def GetMarker(self):
@@ -97,33 +97,36 @@ class ARPipeline:
 
         return frame
     
-    def ComputeMatches(self,frame,minMatches):
+    def ComputeMatches(self,frame):
         frame_gray=cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         frame_kp, frame_des = self.descriptor_extractor.detectAndCompute(frame_gray, None)
         
-        if frame_des is None or len(frame_des)<minMatches :
-            #print('[Warning] Not enough match between frame and marker')
-            return None,None
-
         matches=self.matcher.knnMatch(frame_des,self.marker_descriptor,k=2)
         # Apply ratio test
         good = []
         for m,n in matches:
             if m.distance < 0.75*n.distance:
-                good.append([m])
+                good.append([n])
 
         return good,frame_kp
 
-    def HomographyEstimation(self,matches,frame_kp):
-        if matches is None :
-            return None
+    def RefineMatches(self,matches,frame_kp,minMatches=10):
+        #@TODO inverser src dest dans le precedent voir si ça crash ou pas 
+        correct_matches=[]
+        if len(matches) < minMatches :
+            #print('[Warning] Not enough matches between frame and marker : '+str(len(matches)))
+            return correct_matches
 
-        #print(frame_kp[5].pt)
-        #source_points = np.float32([frame_kp[m.trainIdx].pt for m in matches])
+        # Compute Homography
+        src_points = np.float32([frame_kp[m[0].queryIdx].pt for m in matches]).reshape(-1,1,2)
+        dst_points = np.float32([self.GetMarkerKeypoints()[m[0].trainIdx].pt for m in matches]).reshape(-1,1,2)
+        retval, mask=cv.findHomography(src_points,dst_points,cv.RANSAC,ransacReprojThreshold=3.0)
 
-    def ComputePose(self):
-        print("co")
-        # voir pose_from_homography_dl => https://visp-doc.inria.fr/doxygen/camera_localization/tutorial-pose-dlt-planar-opencv.html
+        # Get inliers mask
+        correct_matches = [matches[i] for i in range(len(matches)) if mask[i]]
+
+        return correct_matches
+    
 
 def DrawKeypoints(img,keypoints,width=None,height=None):
     if width == None :
@@ -140,14 +143,11 @@ def DrawKeypoints(img,keypoints,width=None,height=None):
 
 def DrawMatches(img,img_kp,marker,marker_kp,matches,maxMatches=None):
     keypoints=DrawKeypoints(marker,marker_kp)
-    if matches is None :
-        tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,None,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    else:
-        if maxMatches == None or maxMatches>len(matches)-1:
-            maxMatches=len(matches)-1
-            if maxMatches < 0 :
-                maxMatches=0
-        tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,matches[:maxMatches],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+
+    if maxMatches == None or maxMatches>len(matches)-1:
+        maxMatches=len(matches)-1
+        if maxMatches < 0 :
+            maxMatches=0
+    tmp=cv.drawMatchesKnn(keypoints,marker_kp,img,img_kp,matches[:maxMatches],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     
     return tmp
-   
