@@ -170,12 +170,13 @@ class ARPipeline:
         self.escapeKey=escapeKey
         self.cam.width=width
         self.cam.height=height
-        self.cam.video=video
+        self.cam.video=str(video)
         self.cam.loop=loop
         self.cam.realMode=realMode
         print('[INFO] Press \"'+str(self.escapeKey)+'\" to quit')
-
-        if video==0 :
+        
+        if str.isdigit(self.cam.video) :
+            video=int(self.cam.video)
             self.cam.capture = cv.VideoCapture(video,cv.CAP_DSHOW)
             print('[INFO] Video capture is \"camera\"')
         else :
