@@ -41,7 +41,7 @@ def main():
     pipeline=ARPipeline(video=video,realMode=realMode)
     pipeline.LoadCamCalibration(calibration_file)
     pipeline.LoadMarker(marker_file)
-    pikachu=OBJ('./models/Pikachu.obj', swapyz=True)  
+    pikachu=OBJ('./models/teddy.obj', swapyz=True)  
     #endregion
     
     while(True): 
