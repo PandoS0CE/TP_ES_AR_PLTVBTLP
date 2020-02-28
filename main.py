@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 import argparse
 import ARTools
-from ARTools import ARPipeline
+from ARTools import *
 
 def get_args(calibration,marker,minMatches,maxMatches,video):
     parser = argparse.ArgumentParser()
@@ -36,29 +36,43 @@ def main():
     maxMatches=20
     calibration_file,marker_file,minMatches,maxMatches,video,realMode=get_args(calibration_file,marker_file,minMatches,maxMatches,video)
     moveWindows=True
+
+    # ARPipeline
     pipeline=ARPipeline(video=video,realMode=realMode)
     pipeline.LoadCamCalibration(calibration_file)
     pipeline.LoadMarker(marker_file)
+    pikachu=OBJ('./models/Pikachu.obj', swapyz=True)  
     #endregion
     
     while(True): 
         frame=pipeline.GetFrame()
+       
         matches,frame_kp=pipeline.ComputeMatches(frame)
         homography,_=pipeline.ComputeHomography(matches,frame_kp,minMatches=minMatches)
-        matches_refined=pipeline.RefineMatches(matches,frame_kp)
+        
+        matches_refined=pipeline.RefineMatches(matches,frame_kp,minMatches=minMatches)
         homography_refined,_=pipeline.ComputeHomography(matches_refined,frame_kp,minMatches=minMatches)
-        #found=pipeline.FindMarker(frame,homography_refined,minMatches=minMatches)
-        rvecs, tvecs=pipeline.ComputePose(frame,homography_refined)
+       
+        warped,homography_warped=pipeline.WarpMarker(frame,homography_refined,minMatches=minMatches)
+        rvecs, tvecs=pipeline.ComputePose(frame,homography_warped) #@TODO pnp bug chelou sur la position
+
+        #cv.imshow('CubeTest',ARTools.Draw3DCube(frame,rvecs,tvecs,pipeline.cam)) #@TODO pnp bug chelou sur la position
         #region Rendering
-        ar=ARTools.Draw3DRectangle(frame,pipeline.marker.img,homography,color=(0,0,255))
-        cv.imshow('AR Camera',ARTools.Draw3DRectangle(ar,pipeline.marker.img,homography_refined,color=(255,0,0),old=pipeline.old.transformation))
-        cv.imshow('Keypoints',ARTools.DrawKeypoints(frame,frame_kp))
-        img_matches=ARTools.DrawMatches(frame,frame_kp,pipeline.marker.img,pipeline.marker.kp,matches,maxMatches=maxMatches)
+        ar=frame.copy()
+        ar=pipeline.renderer.Draw2DRectangle(ar,homography,color=(255,0,0))
+        ar=pipeline.renderer.Draw2DRectangle(ar,homography_refined,color=(0,255,0))
+        ar=pipeline.renderer.Draw2DRectangle(ar,homography_warped,color=(0,0,255))
+        ar=pipeline.renderer.DrawObjHomography(ar,homography_warped,pikachu)
+
+        cv.imshow('AR Camera',ar)
+        cv.imshow('Keypoints',pipeline.renderer.DrawKeypoints(frame,frame_kp))
+        img_matches=pipeline.renderer.DrawMatches(frame,frame_kp,matches,maxMatches=maxMatches)
         img_matches = cv.resize(img_matches,(frame.shape[1],frame.shape[0]))
         cv.imshow('Matches',img_matches)
-        img_matches_refined=ARTools.DrawMatches(frame,frame_kp,pipeline.marker.img,pipeline.marker.kp,matches_refined,maxMatches=maxMatches)
+        img_matches_refined=pipeline.renderer.DrawMatches(frame,frame_kp,matches_refined,maxMatches=maxMatches)
         img_matches_refined = cv.resize(img_matches_refined,(frame.shape[1],frame.shape[0]))
         cv.imshow('Matches refined',img_matches_refined)
+        cv.imshow('Find Marker',warped)
 
         if moveWindows==True :
             # init position windows once
@@ -66,6 +80,7 @@ def main():
             cv.moveWindow('Keypoints',frame.shape[1],0)
             cv.moveWindow('Matches',2*frame.shape[1],0)
             cv.moveWindow('Matches refined',2*frame.shape[1],frame.shape[0])
+            cv.moveWindow('Find Marker',frame.shape[1],frame.shape[0])
             moveWindows=False
         #endregion
 
