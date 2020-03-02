@@ -57,11 +57,11 @@ class Renderer:
 
         return np.dot(self.cam.mtx, projection)
         
-    def DrawObjHomography(self,img, homography,obj):
+    def DrawObjHomography(self,img, homography,obj,eye=1):
         if homography is not None :
             projection=self.ComputeProjectionMatrix(homography)
             vertices = obj.vertices
-            scale_matrix = np.eye(3) * 3
+            scale_matrix = np.eye(3) * eye
             h = self.marker.img.shape[0]
             w = self.marker.img.shape[1]
 
@@ -187,7 +187,7 @@ class ARPipeline:
         
         self.cam.capture.set(cv.CAP_PROP_FRAME_WIDTH, self.cam.width)
         self.cam.capture.set(cv.CAP_PROP_FRAME_HEIGHT, self.cam.height)
-        self.descriptor = cv.ORB_create()
+        self.detector = cv.ORB_create()
         self.matcher= cv.BFMatcher() #https://docs.opencv.org/master/dc/dc3/tutorial_py_matcher.html
 
     def LoadCamCalibration(self,calibrationPath):
@@ -198,12 +198,14 @@ class ARPipeline:
     def LoadMarker(self,markerPath):
         # Extract marker features
         self.marker.img=cv.imread(markerPath,cv.IMREAD_COLOR)
-        self.marker.kp, self.marker.des = self.descriptor.detectAndCompute(cv.cvtColor(self.marker.img, cv.COLOR_BGR2GRAY), None)        
+        self.marker.kp, self.marker.des = self.detector.detectAndCompute(cv.cvtColor(self.marker.img, cv.COLOR_BGR2GRAY), None)        
         
         # Compute marker points
-        h_norm=self.cam.height/max(self.cam.height,self.cam.width)
-        w_norm=self.cam.width/max(self.cam.height,self.cam.width)
-        self.marker.points2D = np.float32([[0,0],[self.cam.width,0],[self.cam.width,self.cam.height],[0,self.cam.height]]).reshape(-1, 1, 2)
+        h=self.marker.img.shape[0]
+        w=self.marker.img.shape[1]
+        h_norm=h/max(h,w)
+        w_norm=w/max(h,w)
+        self.marker.points2D = np.float32([[0,0],[w,0],[w,h],[0,h]]).reshape(-1, 1, 2)
         self.marker.points3D = np.float32([[-w_norm,-h_norm,0],[w_norm,-h_norm,0],[w_norm,h_norm,0],[-w_norm,h_norm,0]])
         
         self.renderer=Renderer(self)
@@ -266,7 +268,7 @@ class ARPipeline:
         else:
             gray=frame
 
-        frame_kp, frame_des = self.descriptor.detectAndCompute(gray, None)
+        frame_kp, frame_des = self.detector.detectAndCompute(gray, None)
 
         if frame_des is not None and len(frame_kp)>=k:
             matches=self.matcher.knnMatch(self.marker.des,frame_des,k=k)
@@ -323,11 +325,11 @@ class ARPipeline:
     def ComputePose(self,frame,homography):
         rvecs=None
         tvecs=None
-        #@TODO NOK
+        #@TODO NOK a faire via les previous frames
         if homography is not None :
             # Transform frame edge based on new homography
             dst = cv.perspectiveTransform(self.marker.points2D, homography) 
-            # Estimate the camera pose from frame corner points in world coordinates and image frame
+            # Estimate the camera pose, objectPoints=3D points, imagePoints=2D points
             _,rvecs, tvecs = cv.solvePnP(objectPoints=self.marker.points3D, imagePoints=dst, cameraMatrix=self.cam.mtx, distCoeffs=self.cam.dist)
 
             #rotMat=cv.Rodrigues(rvecs)
@@ -335,3 +337,5 @@ class ARPipeline:
             Log('[Warning] Cannot compute pose without homography')  
 
         return rvecs, tvecs
+
+

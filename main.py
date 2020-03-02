@@ -56,7 +56,7 @@ def main():
         warped,homography_warped=pipeline.WarpMarker(frame,homography_refined,minMatches=minMatches)
         rvecs, tvecs=pipeline.ComputePose(frame,homography_warped) #@TODO pnp bug chelou sur la position
 
-        #cv.imshow('CubeTest',ARTools.Draw3DCube(frame,rvecs,tvecs,pipeline.cam)) #@TODO pnp bug chelou sur la position
+        #cv.imshow('CubeTest',pipeline.renderer.Draw3DCube(frame,rvecs,tvecs))
         #region Rendering
         ar=frame.copy()
         ar=pipeline.renderer.Draw2DRectangle(ar,homography,color=(255,0,0))
@@ -72,7 +72,7 @@ def main():
         img_matches_refined=pipeline.renderer.DrawMatches(frame,frame_kp,matches_refined,maxMatches=maxMatches)
         img_matches_refined = cv.resize(img_matches_refined,(frame.shape[1],frame.shape[0]))
         cv.imshow('Matches refined',img_matches_refined)
-        cv.imshow('Find Marker',warped)
+        cv.imshow('Warp',warped)
 
         if moveWindows==True :
             # init position windows once
@@ -80,7 +80,7 @@ def main():
             cv.moveWindow('Keypoints',frame.shape[1],0)
             cv.moveWindow('Matches',2*frame.shape[1],0)
             cv.moveWindow('Matches refined',2*frame.shape[1],frame.shape[0])
-            cv.moveWindow('Find Marker',frame.shape[1],frame.shape[0])
+            cv.moveWindow('Warp',frame.shape[1],frame.shape[0])
             moveWindows=False
         #endregion
 
