@@ -68,11 +68,3 @@ https://www.youtube.com/watch?v=B4pc_e8mdcs
 [OpenCV](https://anaconda.org/conda-forge/opencv)
 `conda install -c conda-forge opencv`
 
-[MatPlotLib](https://anaconda.org/conda-forge/matplotlib)
-`conda install -c conda-forge matplotlib`
-
-[OpenGL](https://anaconda.org/conda-forge/pyopengl)
-`conda install -c conda-forge pyopengl`
-
-[OpenGL Accelerate](https://anaconda.org/anaconda/pyopengl-accelerate)
-`conda install -c anaconda pyopengl-accelerate`

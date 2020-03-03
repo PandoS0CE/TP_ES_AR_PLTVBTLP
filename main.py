@@ -41,7 +41,7 @@ def main():
     pipeline=ARPipeline(video=video,realMode=realMode)
     pipeline.LoadCamCalibration(calibration_file)
     pipeline.LoadMarker(marker_file)
-    pikachu=OBJ('./models/teddy.obj', swapyz=True)  
+    pikachu=OBJ('./models/wolf.obj', swapyz=True)  
     #endregion
     
     while(True): 
@@ -54,15 +54,14 @@ def main():
         homography_refined,_=pipeline.ComputeHomography(matches_refined,frame_kp,minMatches=minMatches)
        
         warped,homography_warped=pipeline.WarpMarker(frame,homography_refined,minMatches=minMatches)
-        rvecs, tvecs=pipeline.ComputePose(frame,homography_warped) #@TODO pnp bug chelou sur la position
+        rvecs, tvecs=pipeline.ComputePose(frame,homography_warped) #@TODO pnp
 
-        #cv.imshow('CubeTest',pipeline.renderer.Draw3DCube(frame,rvecs,tvecs))
         #region Rendering
         ar=frame.copy()
         ar=pipeline.renderer.Draw2DRectangle(ar,homography,color=(255,0,0))
         ar=pipeline.renderer.Draw2DRectangle(ar,homography_refined,color=(0,255,0))
         ar=pipeline.renderer.Draw2DRectangle(ar,homography_warped,color=(0,0,255))
-        ar=pipeline.renderer.DrawObjHomography(ar,homography_warped,pikachu)
+        ar=pipeline.renderer.DrawObj(ar,homography_warped,pikachu,eye=0.6)
 
         cv.imshow('AR Camera',ar)
         cv.imshow('Keypoints',pipeline.renderer.DrawKeypoints(frame,frame_kp))
